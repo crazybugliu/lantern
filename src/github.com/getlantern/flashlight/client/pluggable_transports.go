@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/Yawning/obfs4/transports/obfs4"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/keyman"
 	"github.com/getlantern/tlsdialer"
 
@@ -32,7 +33,7 @@ func defaultDialFactory(s *ChainedServerInfo, deviceID string) (dialFN, error) {
 	var dial dialFN
 
 	if s.Cert == "" && !forceProxy {
-		elog.Log(fmt.Errorf("No Cert configured for chained server, will dial with plain tcp"))
+		errors.New("No Cert configured for chained server, will dial with plain tcp").Report()
 		dial = func() (net.Conn, error) {
 			return netd.Dial("tcp", addr)
 		}

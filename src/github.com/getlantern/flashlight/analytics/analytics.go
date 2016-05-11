@@ -2,7 +2,6 @@ package analytics
 
 import (
 	"bytes"
-	"fmt"
 	"math"
 	"net/http"
 	"net/http/httputil"
@@ -17,7 +16,7 @@ import (
 	"github.com/getlantern/flashlight/geolookup"
 	"github.com/getlantern/flashlight/util"
 
-	"github.com/getlantern/errlog"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/golog"
 )
 
@@ -27,8 +26,7 @@ const (
 )
 
 var (
-	log  = golog.LoggerFor("flashlight.analytics")
-	elog = errlog.ErrorLoggerFor("flashlight.analytics")
+	log = golog.LoggerFor("flashlight.analytics")
 
 	maxWaitForIP = math.MaxInt32 * time.Second
 )
@@ -38,10 +36,8 @@ func Start(cfg *config.Config, version string) func() {
 	go func() {
 		ip := geolookup.GetIP(maxWaitForIP)
 		if ip == "" {
-			elog.Log(fmt.Errorf("No IP found"),
-				errlog.WithOp("geolookup"),
-				errlog.WithField("waitSeconds", strconv.FormatInt(int64(maxWaitForIP/time.Second), 10)),
-			)
+			errors.New("No IP found").WithOp("geolookup").
+				With("waitSeconds", strconv.FormatInt(int64(maxWaitForIP/time.Second), 10)).Report()
 			return
 		}
 		addr.Store(ip)
@@ -98,9 +94,8 @@ func startSession(ip string, version string, proxyAddrFN eventual.Getter, client
 
 func trackSession(args string, proxyAddrFN eventual.Getter) {
 	r, err := http.NewRequest("POST", ApiEndpoint, bytes.NewBufferString(args))
-
 	if err != nil {
-		elog.Log(err, errlog.WithOp("new-ga-request"))
+		errors.Wrap(err).Report()
 		return
 	}
 
@@ -108,7 +103,7 @@ func trackSession(args string, proxyAddrFN eventual.Getter) {
 	r.Header.Add("Content-Length", strconv.Itoa(len(args)))
 
 	if req, err := httputil.DumpRequestOut(r, true); err != nil {
-		log.Debugf("Could not dump request: %v", err)
+		errors.Wrap(err).WithOp("dump-request").Report()
 	} else {
 		log.Debugf("Full analytics request: %v", string(req))
 	}
@@ -116,12 +111,12 @@ func trackSession(args string, proxyAddrFN eventual.Getter) {
 	var httpClient *http.Client
 	httpClient, err = util.HTTPClient("", proxyAddrFN)
 	if err != nil {
-		elog.Log(err, errlog.WithOp("create-http-client"))
+		errors.Wrap(err).Report()
 		return
 	}
 	resp, err := httpClient.Do(r)
 	if err != nil {
-		elog.Log(err, errlog.WithOp("send-http-request"))
+		errors.Wrap(err).Report()
 		return
 	}
 	log.Debugf("Successfully sent request to GA: %s", resp.Status)

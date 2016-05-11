@@ -1,11 +1,10 @@
 package client
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/getlantern/balancer"
-	"github.com/getlantern/errlog"
+	"github.com/getlantern/errors"
 )
 
 // getBalancer waits for a message from client.balCh to arrive and then it
@@ -24,7 +23,7 @@ func (client *Client) getBalancer() *balancer.Balancer {
 // balancer.
 func (client *Client) initBalancer(cfg *ClientConfig) (*balancer.Balancer, error) {
 	if len(cfg.ChainedServers) == 0 {
-		return nil, fmt.Errorf("No chained servers configured, not initializing balancer")
+		return nil, errors.New("No chained servers configured, not initializing balancer")
 	}
 	// The dialers slice must be large enough to handle all chained and obfs4
 	// servers.
@@ -38,10 +37,7 @@ func (client *Client) initBalancer(cfg *ClientConfig) (*balancer.Balancer, error
 			log.Debugf("Adding chained server: %v", s.Addr)
 			dialers = append(dialers, dialer)
 		} else {
-			elog.Log(err, errlog.WithOp("configure"), errlog.WithProxy(&errlog.ProxyingInfo{
-				ProxyType: errlog.ChainedProxy,
-				ProxyAddr: s.Addr,
-			}))
+			errors.Wrap(err).WithOp("configure").ProxyType(errors.ChainedProxy).ProxyAddr(s.Addr).Report()
 		}
 	}
 

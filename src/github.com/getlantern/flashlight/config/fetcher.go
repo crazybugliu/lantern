@@ -2,14 +2,13 @@ package config
 
 import (
 	"compress/gzip"
-	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"time"
 
-	"github.com/getlantern/errlog"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/flashlight/util"
 	"github.com/getlantern/yamlconf"
 
@@ -74,8 +73,7 @@ func (cf *fetcher) pollForConfig(currentCfg yamlconf.Config, stickyConfig bool) 
 	}
 
 	if bytes, err := cf.fetchCloudConfig(cfg); err != nil {
-		elog.Log(err, errlog.WithOp("fetch-cloud-config"))
-		return mutate, waitTime, err
+		return mutate, waitTime, errors.Wrap(err).WithOp("fetch-cloud-config")
 	} else if bytes != nil {
 		// bytes will be nil if the config is unchanged (not modified)
 		mutate = func(ycfg yamlconf.Config) error {
@@ -105,7 +103,7 @@ func (cf *fetcher) fetchCloudConfig(cfg *Config) ([]byte, error) {
 	nocache := url + cb
 	req, err := http.NewRequest("GET", nocache, nil)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to construct request for cloud config at %s: %s", nocache, err)
+		return nil, errors.Wrap(err).WithOp("NewRequest").With("url", nocache)
 	}
 	if cf.lastCloudConfigETag[url] != "" {
 		// Don't bother fetching if unchanged
@@ -134,11 +132,11 @@ func (cf *fetcher) fetchCloudConfig(cfg *Config) ([]byte, error) {
 
 	resp, err := cf.httpFetcher.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to fetch cloud config at %s: %s", url, err)
+		return nil, errors.Wrap(err).WithOp("fetch-cloud-config").With("url", url)
 	}
 	dump, err := httputil.DumpResponse(resp, false)
 	if err != nil {
-		elog.Log(err, errlog.WithOp("dump-response"))
+		errors.Wrap(err).WithOp("dump-response").Report()
 	} else {
 		log.Debugf("Response headers: \n%v", string(dump))
 	}
@@ -152,13 +150,13 @@ func (cf *fetcher) fetchCloudConfig(cfg *Config) ([]byte, error) {
 		log.Debugf("Config unchanged in cloud")
 		return nil, nil
 	} else if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Unexpected response status: %d", resp.StatusCode)
+		return nil, errors.New("Unexpected response status").With("status-code", resp.StatusCode)
 	}
 
 	cf.lastCloudConfigETag[url] = resp.Header.Get(etag)
 	gzReader, err := gzip.NewReader(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to open gzip reader: %s", err)
+		return nil, errors.Wrap(err)
 	}
 	log.Debugf("Fetched cloud config")
 	return ioutil.ReadAll(gzReader)

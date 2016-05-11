@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"reflect"
@@ -13,7 +12,7 @@ import (
 	"github.com/armon/go-socks5"
 	"github.com/getlantern/balancer"
 	"github.com/getlantern/detour"
-	"github.com/getlantern/errlog"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/eventual"
 	"github.com/getlantern/golog"
 )
@@ -26,8 +25,7 @@ const (
 )
 
 var (
-	log  = golog.LoggerFor("flashlight.client")
-	elog = errlog.ErrorLoggerFor("flashlight.client")
+	log = golog.LoggerFor("flashlight.client")
 
 	// UIAddr is the address at which UI is to be found
 	UIAddr string
@@ -99,7 +97,7 @@ func (client *Client) ListenAndServeHTTP(requestedAddr string, onListeningFn fun
 	var err error
 	var l net.Listener
 	if l, err = net.Listen("tcp", requestedAddr); err != nil {
-		return fmt.Errorf("Unable to listen: %q", err)
+		return errors.Wrap(err)
 	}
 
 	client.l = l
@@ -122,7 +120,7 @@ func (client *Client) ListenAndServeSOCKS5(requestedAddr string) error {
 	var err error
 	var l net.Listener
 	if l, err = net.Listen("tcp", requestedAddr); err != nil {
-		return fmt.Errorf("Unable to listen: %q", err)
+		return errors.Wrap(err)
 	}
 	listenAddr := l.Addr().String()
 	socksAddr.Set(listenAddr)
@@ -131,7 +129,7 @@ func (client *Client) ListenAndServeSOCKS5(requestedAddr string) error {
 		Dial: func(network, addr string) (net.Conn, error) {
 			bal, ok := client.bal.Get(1 * time.Minute)
 			if !ok {
-				return nil, fmt.Errorf("Unable to get balancer")
+				return nil, errors.New("Unable to get balancer")
 			}
 			// Using protocol "connect" will cause the balancer to issue an HTTP
 			// CONNECT request to the upstream proxy and return the resulting channel
@@ -141,7 +139,7 @@ func (client *Client) ListenAndServeSOCKS5(requestedAddr string) error {
 	}
 	server, err := socks5.New(conf)
 	if err != nil {
-		return fmt.Errorf("Unable to create SOCKS5 server: %v", err)
+		return errors.Wrap(err).WithOp("Unable to create SOCKS5 server")
 	}
 
 	log.Debugf("About to start SOCKS5 client proxy at %v", listenAddr)
@@ -173,7 +171,7 @@ func (client *Client) Configure(cfg *ClientConfig, proxyAll func() bool) {
 
 	bal, err := client.initBalancer(cfg)
 	if err != nil {
-		elog.Log(err)
+		errors.Wrap(err).Report()
 	} else if bal != nil {
 		client.rp.Set(client.newReverseProxy(bal))
 	}
@@ -184,7 +182,7 @@ func (client *Client) Configure(cfg *ClientConfig, proxyAll func() bool) {
 // Stop is called when the client is no longer needed. It closes the
 // client listener and underlying dialer connection pool
 func (client *Client) Stop() error {
-	return client.l.Close()
+	return errors.Wrap(client.l.Close())
 }
 
 func (client *Client) ProxyAll() bool {

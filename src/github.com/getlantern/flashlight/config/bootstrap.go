@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/getlantern/appdir"
-	"github.com/getlantern/errlog"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/tarfs"
 	"github.com/getlantern/yaml"
 	"github.com/getlantern/yamlconf"
@@ -42,7 +41,7 @@ type BootstrapSettings struct {
 func ReadBootstrapSettings() (*BootstrapSettings, error) {
 	_, yamlPath, err := bootstrapPath(name)
 	if err != nil {
-		return &BootstrapSettings{}, err
+		return &BootstrapSettings{}, errors.Wrap(err)
 	}
 
 	ps, er := readSettingsFromFile(yamlPath)
@@ -60,7 +59,7 @@ func readSettingsFromFile(yamlPath string) (*BootstrapSettings, error) {
 	if err != nil {
 		// This will happen whenever there's no packaged settings, which is often
 		log.Debugf("Error reading file %v", err)
-		return &BootstrapSettings{}, err
+		return &BootstrapSettings{}, errors.Wrap(err)
 	}
 
 	trimmed := strings.TrimSpace(string(data))
@@ -75,8 +74,7 @@ func readSettingsFromFile(yamlPath string) (*BootstrapSettings, error) {
 	err = yaml.Unmarshal([]byte(trimmed), &s)
 
 	if err != nil {
-		elog.Log(err, errlog.WithOp("read-bootstrap-settings"))
-		return &BootstrapSettings{}, err
+		return &BootstrapSettings{}, errors.Wrap(err).WithOp("read-bootstrap-settings")
 	}
 	return &s, nil
 }
@@ -85,8 +83,7 @@ func readSettingsFromFile(yamlPath string) (*BootstrapSettings, error) {
 func MakeInitialConfig() (yamlconf.Config, error) {
 	dir, _, err := bootstrapPath(lanternYamlName)
 	if err != nil {
-		elog.Log(err, errlog.WithOp("get-bootstrap-path"))
-		return nil, err
+		return nil, errors.Wrap(err).WithOp("get-bootstrap-path")
 	}
 
 	// We need to use tarfs here because the lantern.yaml needs to embedded
@@ -94,8 +91,7 @@ func MakeInitialConfig() (yamlconf.Config, error) {
 	// however, to embed it in installers to change various settings.
 	fs, err := tarfs.New(Resources, dir)
 	if err != nil {
-		elog.Log(err, errlog.WithOp("read-tarfs"))
-		return nil, err
+		return nil, errors.Wrap(err).WithOp("read-tarfs")
 	}
 
 	// Get the yaml file from either the local file system or from an
@@ -103,14 +99,12 @@ func MakeInitialConfig() (yamlconf.Config, error) {
 	// empty.
 	bytes, err := fs.GetIgnoreLocalEmpty("lantern.yaml")
 	if err != nil {
-		elog.Log(err, errlog.WithOp("read-bootstrap-file"))
-		return nil, err
+		return nil, errors.Wrap(err).WithOp("read-bootstrap-file")
 	}
 	cfg := &Config{}
 	err = yaml.Unmarshal(bytes, cfg)
 	if err != nil {
-		elog.Log(err, errlog.WithOp("parse-yaml"))
-		return nil, err
+		return nil, errors.Wrap(err).WithOp("parse-yaml")
 	}
 	return cfg, nil
 }
@@ -118,8 +112,7 @@ func MakeInitialConfig() (yamlconf.Config, error) {
 func bootstrapPath(fileName string) (string, string, error) {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		elog.Log(err, errlog.WithOp("get-cwd"))
-		return "", "", err
+		return "", "", errors.Wrap(err).WithOp("get-cwd")
 	}
 	var yamldir string
 	if runtime.GOOS == "windows" {

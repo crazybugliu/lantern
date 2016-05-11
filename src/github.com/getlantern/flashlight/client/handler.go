@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/getlantern/errlog"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/flashlight/logging"
 )
 
@@ -126,7 +126,7 @@ func (client *Client) intercept(resp http.ResponseWriter, req *http.Request) {
 	success := make(chan bool, 1)
 	go func() {
 		if e := respondOK(clientConn, req); e != nil {
-			elog.Log(e, errlog.WithOp("respondOK"), errlog.WithUserAgent(req.Header.Get("User-Agent")))
+			errors.Wrap(e).WithOp("respond-ok").UserAgent(req.Header.Get("User-Agent")).Report()
 			success <- false
 			return
 		}
@@ -181,6 +181,7 @@ func respondHijacked(writer io.Writer, req *http.Request, statusCode int) error 
 	return resp.Write(writer)
 }
 
+// TODO: respond user friendly page if requested from browser
 func respondBadGateway(resp http.ResponseWriter, msg string) {
 	log.Debugf("Responding BadGateway: %v", msg)
 	resp.WriteHeader(http.StatusBadGateway)

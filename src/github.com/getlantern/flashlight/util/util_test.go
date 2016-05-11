@@ -56,7 +56,9 @@ func TestChainedAndFronted(t *testing.T) {
 
 	cf := NewChainedAndFronted(proxyAddr)
 	resp, err := cf.Do(req)
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.NoError(t, err)
 	//log.Debugf("Got body: %v", string(body))
@@ -72,7 +74,9 @@ func TestChainedAndFronted(t *testing.T) {
 	assert.NoError(t, err)
 	cf = NewChainedAndFronted(proxyAddr)
 	resp, err = cf.Do(req)
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	log.Debugf("Got response in test")
 	body, err = ioutil.ReadAll(resp.Body)
 	assert.NoError(t, err)

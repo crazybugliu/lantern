@@ -15,7 +15,7 @@ import (
 
 	"github.com/getlantern/appdir"
 	"github.com/getlantern/detour"
-	"github.com/getlantern/errlog"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/fronted"
 	"github.com/getlantern/golog"
 	"github.com/getlantern/keyman"
@@ -35,10 +35,9 @@ const (
 )
 
 var (
-	log  = golog.LoggerFor("flashlight.config")
-	elog = errlog.ErrorLoggerFor("flashlight.config")
-	m    *yamlconf.Manager
-	r    = regexp.MustCompile("\\d+\\.\\d+")
+	log = golog.LoggerFor("flashlight.config")
+	m   *yamlconf.Manager
+	r   = regexp.MustCompile("\\d+\\.\\d+")
 )
 
 // Config contains general configuration for Lantern either set globally via
@@ -68,7 +67,9 @@ func StartPolling() {
 	// Force detour to whitelist chained domain
 	u, err := url.Parse(chainedCloudConfigURL)
 	if err != nil {
-		log.Fatalf("Unable to parse chained cloud config URL: %v", err)
+		errors.Wrap(err).WithOp("parse-url").With("chained-cloud-config-url", chainedCloudConfigURL).Report()
+		// TODO: graceful exit
+		os.Exit(1)
 	}
 	detour.ForceWhitelist(u.Host)
 
@@ -87,7 +88,7 @@ type CA struct {
 func validateConfig(_cfg yamlconf.Config) error {
 	cfg, ok := _cfg.(*Config)
 	if !ok {
-		return fmt.Errorf("Config is not a flashlight config!")
+		return errors.New("Config is not a flashlight config!")
 	}
 	nc := len(cfg.Client.ChainedServers)
 
@@ -95,11 +96,11 @@ func validateConfig(_cfg yamlconf.Config) error {
 	for _, v := range cfg.Client.ChainedServers {
 		log.Debugf("chained server: %v", v)
 	}
-	// The config will have more than one but fewer than 10 chained servers
-	// if it has been given a custom config with a custom chained server
-	// list
+	// The config will have more than one but fewer than 10 chained servers if
+	// it has been given a custom config with a custom chained server list
 	if nc <= 0 || nc > 10 {
-		return fmt.Errorf("Inappropriate number of custom chained servers found: %d", nc)
+		return errors.New("Inappropriate number of custom chained servers").
+			With("server-count", nc)
 	}
 	return nil
 }
@@ -122,7 +123,7 @@ func Init(userConfig UserConfig, version string, configDir string, stickyConfig 
 	file := "lantern-" + version + ".yaml"
 	_, configPath, err := inConfigDir(configDir, file)
 	if err != nil {
-		elog.Log(err, errlog.WithOp("init"))
+		errors.Wrap(err).Report()
 		return nil, err
 	}
 
@@ -150,7 +151,7 @@ func Init(userConfig UserConfig, version string, configDir string, stickyConfig 
 
 	var cfg *Config
 	if err != nil {
-		elog.Log(err, errlog.WithOp("init"))
+		errors.Wrap(err).Report()
 	} else {
 		cfg = initial.(*Config)
 	}
@@ -186,7 +187,7 @@ func inConfigDir(configDir string, filename string) (string, string, error) {
 		if os.IsNotExist(err) {
 			// Create config dir
 			if err := os.MkdirAll(cdir, 0750); err != nil {
-				return "", "", fmt.Errorf("Unable to create configdir at %s: %s", cdir, err)
+				return "", "", errors.Wrap(err).WithOp("create-configdir").With("dir", cdir)
 			}
 		}
 	}
@@ -201,7 +202,7 @@ func (cfg *Config) GetTrustedCACerts() (pool *x509.CertPool, err error) {
 	}
 	pool, err = keyman.PoolContainingCerts(certs...)
 	if err != nil {
-		elog.Log(err, errlog.WithOp("create-certs-pool"))
+		errors.Wrap(err).WithOp("create-certs-pool").Report()
 	}
 	return
 }

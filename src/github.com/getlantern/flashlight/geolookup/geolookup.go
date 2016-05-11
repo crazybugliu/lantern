@@ -4,7 +4,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/getlantern/errlog"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/eventual"
 	geo "github.com/getlantern/geolookup"
 	"github.com/getlantern/golog"
@@ -13,8 +13,7 @@ import (
 )
 
 var (
-	log  = golog.LoggerFor("flashlight.geolookup")
-	elog = errlog.ErrorLoggerFor("flashlight.geolookup")
+	log = golog.LoggerFor("flashlight.geolookup")
 
 	refreshRequest = make(chan interface{}, 1)
 	cf             util.HTTPFetcher
@@ -87,7 +86,7 @@ func lookup() *geoInfo {
 	for {
 		gi, err := doLookup()
 		if err != nil {
-			log.Debugf("Unable to get current location: %s", err)
+			err.WithOp("geolookup").Report()
 			wait := time.Duration(math.Pow(2, float64(consecutiveFailures))*float64(retryWaitMillis)) * time.Millisecond
 			if wait > maxRetryWait {
 				wait = maxRetryWait
@@ -102,12 +101,11 @@ func lookup() *geoInfo {
 	}
 }
 
-func doLookup() (*geoInfo, error) {
+func doLookup() (*geoInfo, *errors.Error) {
 	city, ip, err := geo.LookupIPWithClient("", cf)
 
 	if err != nil {
-		elog.Log(err, errlog.WithOp("geolookup"))
-		return nil, err
+		return nil, errors.Wrap(err)
 	}
 	return &geoInfo{ip, city}, nil
 }
