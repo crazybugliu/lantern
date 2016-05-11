@@ -21,7 +21,7 @@ func (r *rawReporter) Report(e *Error) {
 
 func TestAnonymousError(t *testing.T) {
 	rr := &rawReporter{}
-	ReportTo(rr)
+	Initialize("", rr, false)
 	New("any error").Report()
 	expected := &Error{
 		Package: "errors",
@@ -36,6 +36,11 @@ func TestAnonymousError(t *testing.T) {
 	assert.Equal(t, expected.Error(), rr.err.Error(), "should log errors created by Wrap()")
 }
 
+func TestWrapNil(t *testing.T) {
+	assert.Equal(t, nil, Wrap(nil).Source, "should have no error wrapping nil")
+	assert.Equal(t, "", Wrap(nil).Desc, "should have nothing when wrapping nil")
+}
+
 func TestWrapAlreadyWrapped(t *testing.T) {
 	e := New("any error")
 	assert.Equal(t, e, Wrap(e), "should not wrap already wrapped error")
@@ -43,37 +48,35 @@ func TestWrapAlreadyWrapped(t *testing.T) {
 
 func TestWithFields(t *testing.T) {
 	rr := &rawReporter{}
-	ReportTo(rr)
+	Initialize("", rr, false)
 	e := Wrap(errors.New("any error")).
 		WithOp("test").
 		ProxyType(NoProxy).
-		ProxyLocalAddr("1.2.3.4:80").
 		ProxyAddr("a.b.c.d:80").
-		ProxyOriginSite("www.google.com:443").
+		OriginSite("www.google.com:443").
 		URIScheme("https").
 		UserAgent("Mozilla/5.0...").
-		WithUserLocale().
+		WithLocale().
 		With("foo", "bar")
 	e.Report()
 	assert.NotEqual(t, rr.err.FileLine, rr.err.ReportFileLine, "should log all fields")
-	expected := "any error Package=errors Func=TestWithFields GoType=*errors.errorString Op=test Desc=any error ProxyType=no-proxy LocalAddr=1.2.3.4:80 ProxyAddr=a.b.c.d:80 OriginSite=www.google.com:443 URIScheme=https TimeZone=CST Language=CUserAgent=Mozilla/5.0... foo=bar"
+	expected := "any error Package=errors Func=TestWithFields GoType=*errors.errorString Op=test ProxyType=no_proxy ProxyAddr=a.b.c.d:80 OriginSite=www.google.com:443 URIScheme=https TimeZone=CST Language=CUserAgent=Mozilla/5.0... foo=bar"
 	assert.Equal(t, expected, rr.err.Error(), "should log all fields")
 }
 
 func TestCaptureError(t *testing.T) {
 	rr := &rawReporter{}
-	ReportTo(rr)
+	Initialize("", rr, false)
 	_, e := net.Dial("tcp", "an.non-existent.domain:80")
 	err := Wrap(e)
 	err.Report()
-	expected := "no such host Package=errors Func=TestCaptureError GoType=net.DNSError Op=dial Desc=no such host domain=an.non-existent.domain network=tcp"
-	expected2 := "no such host Package=errors Func=TestCaptureError GoType=net.DNSError Op=dial Desc=no such host network=tcp domain=an.non-existent.domain"
-	assert.True(t, expected == rr.err.Error() || expected2 == rr.err.Error(), "should log dial error")
+	expected := "no such host Package=errors Func=TestCaptureError GoType=net.DNSError Op=dial"
+	assert.Contains(t, rr.err.Error(), expected, "should log dial error")
 }
 
 func TestCaptureHTTPError(t *testing.T) {
 	rr := &rawReporter{}
-	ReportTo(rr)
+	Initialize("", rr, false)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, _, _ := w.(http.Hijacker).Hijack()
 		_ = conn.Close()
