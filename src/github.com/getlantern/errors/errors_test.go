@@ -37,8 +37,7 @@ func TestAnonymousError(t *testing.T) {
 }
 
 func TestWrapNil(t *testing.T) {
-	assert.Equal(t, nil, Wrap(nil).Source, "should have no error wrapping nil")
-	assert.Equal(t, "", Wrap(nil).Desc, "should have nothing when wrapping nil")
+	assert.Nil(t, Wrap(nil), "should not wrap nil")
 }
 
 func TestWrapAlreadyWrapped(t *testing.T) {

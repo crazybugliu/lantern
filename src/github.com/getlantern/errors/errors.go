@@ -109,6 +109,8 @@ func (d *director) report(e *Error) {
 
 // Reporter is an interface callers should implement to report captured errors.
 type Reporter interface {
+	// Report should not reference the Error object passed in after the
+	// function returns. Do a deep copy if you want to alter or store it.
 	Report(*Error)
 }
 
@@ -127,19 +129,25 @@ func New(s string) (e *Error) {
 	return
 }
 
-// Wrap creates an Error based on the information in an error instance.
-func Wrap(err error) (e *Error) {
+// Wrap creates an Error based on the information in an error instance.  It
+// returns nil if the error passed in is nil, so we can simply call
+// errors.Wrap(s.l.Close()) regardless there's an error or not. If the error is
+// already wrapped, it is returned as is.
+func Wrap(err error) *Error {
+	if err == nil {
+		return nil
+	}
 	if e, ok := err.(*Error); ok {
 		return e
 	}
-	e = &Error{
+	e := &Error{
 		Source: err,
 		TS:     time.Now(),
 	}
 	// always skip [Wrap, attachStack]
 	e.attachStack(2)
 	e.applyDefaults()
-	return
+	return e
 }
 
 // Error wraps system and application defined errors in unified structure for
@@ -180,7 +188,8 @@ type Error struct {
 	*SystemInfo
 }
 
-// Report calls the reporter supplied during Initialize
+// Report calls the reporter supplied during Initialize. It will also call
+// golog.Error if errors package is initialized with enableLogging=true.
 func (e *Error) Report() {
 	curDirector.report(e)
 }
@@ -391,6 +400,7 @@ func (si *SystemInfo) String() string {
 	return buf.String()
 }
 
+// UserLocale contains locale information gained from operation system.
 type UserLocale struct {
 	TimeZone string `json:"time_zone,omitempty"`
 	Language string `json:"language,omitempty"`
