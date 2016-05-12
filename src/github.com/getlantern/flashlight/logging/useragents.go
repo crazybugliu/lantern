@@ -40,8 +40,8 @@ func getSessionUserAgents() string {
 
 	for key, val := range userAgents {
 		if !reg.MatchString(key) {
-			buffer.WriteString(key)
-			buffer.WriteString(fmt.Sprintf(": %d requests; ", val))
+			_, _ = buffer.WriteString(key)
+			_, _ = buffer.WriteString(fmt.Sprintf(": %d requests; ", val))
 		}
 	}
 	return string(buffer.String())

@@ -109,7 +109,7 @@ func startWebServer(t *testing.T) (string, string, error) {
 
 func serveContent(resp http.ResponseWriter, req *http.Request) {
 	resp.WriteHeader(http.StatusOK)
-	resp.Write([]byte(Content))
+	_, _ = resp.Write([]byte(Content))
 }
 
 func startProxyServer(t *testing.T) error {
@@ -170,8 +170,8 @@ func serveConfig(t *testing.T, configAddr string) func(http.ResponseWriter, *htt
 		resp.WriteHeader(http.StatusOK)
 
 		w := gzip.NewWriter(resp)
-		w.Write(cfg)
-		w.Close()
+		_, _ = w.Write(cfg)
+		_ = w.Close()
 	}
 }
 
@@ -279,12 +279,12 @@ func testRequest(t *testing.T, httpAddr string, httpsAddr string) {
 func doRequest(t *testing.T, client *http.Client, url string) {
 	resp, err := client.Get(url)
 	if assert.NoError(t, err, "Unable to GET for "+url) {
-		defer resp.Body.Close()
 		b, err := ioutil.ReadAll(resp.Body)
 		if assert.NoError(t, err, "Unable to read response for "+url) {
 			if assert.Equal(t, http.StatusOK, resp.StatusCode, "Bad response status for "+url+": "+string(b)) {
 				assert.Equal(t, Content, string(b))
 			}
 		}
+		_ = resp.Body.Close()
 	}
 }

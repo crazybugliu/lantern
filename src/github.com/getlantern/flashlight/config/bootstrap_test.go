@@ -20,7 +20,7 @@ func TestBootstrapSettings(t *testing.T) {
 		}
 	}()
 	assert.True(t, err == nil, "Should not be an error")
-	file.Close()
+	_ = file.Close()
 
 	log.Debugf("File at: %v", file.Name())
 	settings := BootstrapSettings{StartupUrl: "test"}

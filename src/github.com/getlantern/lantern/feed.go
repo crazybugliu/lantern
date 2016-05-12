@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Yawning/obfs4/common/log"
 	"github.com/getlantern/errors"
 	"github.com/getlantern/eventual"
 	"github.com/getlantern/flashlight/util"
@@ -140,7 +139,7 @@ func GetFeed(locale string, proxyAddr string, provider FeedProvider) {
 		return
 	}
 
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	gzReader, err := gzip.NewReader(res.Body)
 	if err != nil {

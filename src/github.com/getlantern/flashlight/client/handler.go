@@ -119,7 +119,9 @@ func (client *Client) intercept(resp http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		log.Debugf("Could not dial %v", err)
-		respondBadGatewayHijacked(clientConn, req)
+		if err = respondBadGatewayHijacked(clientConn, req); err != nil {
+			log.Debugf("Could not respond bad gateway: %v", err)
+		}
 		return
 	}
 

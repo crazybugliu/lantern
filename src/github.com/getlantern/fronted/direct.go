@@ -94,7 +94,7 @@ func (d *direct) vetOne() {
 		log.Trace("Vetting one")
 		conn, masqueradesRemain, err := d.dialWith(d.candidates, "tcp", "www.google.com")
 		if err == nil {
-			conn.Close()
+			_ = conn.Close()
 			log.Trace("Finished vetting one")
 			return
 		}
@@ -270,7 +270,7 @@ func (d *direct) headCheck(m *Masquerade) error {
 	if resp, err := client.Head(url); err != nil {
 		return err
 	} else {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if 200 != resp.StatusCode {
 			return fmt.Errorf("Unexpected response status: %v, %v", resp.StatusCode, resp.Status)
 		}

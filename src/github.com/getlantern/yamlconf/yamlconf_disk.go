@@ -109,7 +109,11 @@ func doReadFromDisk(filePath string, allowObfuscation bool, emptyConfig func() C
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open config file %v for reading: %v", filePath, err)
 	}
-	defer infile.Close()
+	defer func() {
+		if err := infile.Close(); err != nil {
+			errors.Wrap(err).Report()
+		}
+	}()
 
 	var in io.Reader = infile
 	if allowObfuscation {
@@ -184,7 +188,11 @@ func (m *Manager) writeToDisk(cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("Unable to open file %v for writing: %v", m.FilePath, err)
 	}
-	defer outfile.Close()
+	defer func() {
+		if err := outfile.Close(); err != nil {
+			errors.Wrap(err).Report()
+		}
+	}()
 
 	var out io.Writer = outfile
 	if m.Obfuscate {

@@ -46,7 +46,7 @@ func New(tarData []byte, local string) (*FileSystem, error) {
 			if os.IsNotExist(err) {
 				log.Tracef("Local dir %v does not exist, not using\n", local)
 			} else {
-				errors.Wrap(err).With("directory", local)
+				errors.Wrap(err).With("directory", local).Report()
 			}
 			local = ""
 		} else {

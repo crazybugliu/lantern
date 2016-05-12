@@ -60,7 +60,7 @@ func sendTestRequest(client *http.Client, addr string) error {
 	if err != nil {
 		return fmt.Errorf("Error reading response body: %s", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	log.Debugf("Successfully processed request to %s", addr)
 	return nil
 }

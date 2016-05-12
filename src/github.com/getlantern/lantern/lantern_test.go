@@ -23,7 +23,7 @@ type testProtector struct{}
 func TestProxying(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "testconfig")
 	if assert.NoError(t, err, "Unable to create temp configDir") {
-		defer os.RemoveAll(tmpDir)
+		defer func() { _ = os.RemoveAll(tmpDir) }()
 		result, err := Start(tmpDir, 5000)
 		if assert.NoError(t, err, "Should have been able to start lantern") {
 			newResult, err := Start("testapp", 5000)

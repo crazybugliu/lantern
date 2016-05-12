@@ -297,7 +297,7 @@ func assertSavedConfigEquals(t *testing.T, m *Manager, file *os.File, expected *
 	if !assert.NoError(t, err, "Unable to open file") {
 		return
 	}
-	defer infile.Close()
+	defer func() { _ = infile.Close() }()
 	var in io.Reader = infile
 	if obfuscate {
 		in = rot13.NewReader(infile)

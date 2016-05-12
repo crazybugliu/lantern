@@ -15,7 +15,9 @@ func TestRead(t *testing.T) {
 		t.Errorf("Could not create temp file %v", err)
 	}
 
-	defer os.Remove(tmpfile.Name()) // clean up
+	defer func() {
+		_ = os.Remove(tmpfile.Name()) // clean up
+	}()
 
 	s := loadSettingsFrom("1", "1/1/1", "1/1/1", tmpfile.Name())
 	assert.Equal(t, s.GetProxyAll(), false)

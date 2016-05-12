@@ -101,7 +101,7 @@ func run(configDir string) {
 		return
 	}
 
-	flashlight.Run("127.0.0.1:0", // listen for HTTP on random address
+	_ = flashlight.Run("127.0.0.1:0", // listen for HTTP on random address
 		"127.0.0.1:0", // listen for SOCKS on random address
 		configDir,     // place to store lantern configuration
 		false,         // don't make config sticky

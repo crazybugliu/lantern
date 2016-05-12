@@ -39,7 +39,7 @@ func TestChainedAndFronted(t *testing.T) {
 	if err != nil {
 		assert.NoError(t, err, "Unable to listen")
 	}
-	go s.Serve(l)
+	go func() { _ = s.Serve(l) }()
 
 	proxyAddr := eventual.DefaultGetter(l.Addr().String())
 

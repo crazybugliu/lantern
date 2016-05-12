@@ -69,7 +69,11 @@ func Resolve(addr string) (*net.TCPAddr, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error creating socket: %v", err)
 	}
-	defer syscall.Close(socketFd)
+	defer func() {
+		if err := syscall.Close(socketFd); err != nil {
+			errors.Wrap(err).Report()
+		}
+	}()
 
 	// Here we protect the underlying socket from the
 	// VPN connection by passing the file descriptor
@@ -95,7 +99,11 @@ func Resolve(addr string) (*net.TCPAddr, error) {
 
 	fd := uintptr(socketFd)
 	file := os.NewFile(fd, "")
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			errors.Wrap(err).Report()
+		}
+	}()
 
 	// return a copy of the network connection
 	// represented by file
@@ -172,7 +180,9 @@ func Dial(network, addr string, timeout time.Duration) (net.Conn, error) {
 		return nil, err
 	}
 
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	if err = conn.Conn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		errors.Wrap(err).WithOp("set-deadline").Report()
+	}
 	return conn, nil
 }
 
@@ -198,8 +208,13 @@ func (conn *ProtectedConn) convert() error {
 	file := os.NewFile(uintptr(conn.socketFd), "")
 	// dup the fd and return a copy
 	fileConn, err := net.FileConn(file)
+	if err != nil {
+		errors.Wrap(err).Report()
+	}
 	// closes the original fd
-	file.Close()
+	if err = file.Close(); err != nil {
+		errors.Wrap(err).Report()
+	}
 	conn.socketFd = socketError
 	if err != nil {
 		conn.mutex.Unlock()
@@ -218,7 +233,9 @@ func (conn *ProtectedConn) cleanup() {
 	defer conn.mutex.Unlock()
 
 	if conn.socketFd != socketError {
-		syscall.Close(conn.socketFd)
+		if err := syscall.Close(conn.socketFd); err != nil {
+			errors.Wrap(err).Report()
+		}
 		conn.socketFd = socketError
 	}
 }
@@ -250,8 +267,12 @@ func (conn *ProtectedConn) Close() (err error) {
 // configure DNS query expiration
 func setQueryTimeouts(c net.Conn) {
 	now := time.Now()
-	c.SetReadDeadline(now.Add(readDeadline))
-	c.SetWriteDeadline(now.Add(writeDeadline))
+	if err := c.SetReadDeadline(now.Add(readDeadline)); err != nil {
+		errors.Wrap(err).WithOp("set-read-deadline").Report()
+	}
+	if err := c.SetWriteDeadline(now.Add(writeDeadline)); err != nil {
+		errors.Wrap(err).WithOp("set-write-deadline").Report()
+	}
 }
 
 // wrapper around net.SplitHostPort that also converts

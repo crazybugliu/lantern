@@ -28,7 +28,7 @@ func (w *GoodWriter) Write(p []byte) (int, error) {
 func TestNonStopWriter(t *testing.T) {
 	b, g := BadWriter{}, GoodWriter{}
 	ns := NonStopWriter(&b, &g)
-	ns.Write([]byte("1234"))
+	_, _ = ns.Write([]byte("1234"))
 	assert.Equal(t, 4, g.counter, "Should write to all writers even when error encountered")
 }
 
