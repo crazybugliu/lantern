@@ -3,11 +3,11 @@
 package autoupdate
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/blang/semver"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/go-update"
 	"github.com/getlantern/go-update/check"
 	"github.com/getlantern/golog"
@@ -52,7 +52,7 @@ func ApplyNext(cfg *Config) error {
 	var err error
 	cfg.version, err = semver.Parse(cfg.CurrentVersion)
 	if err != nil {
-		return fmt.Errorf("Bad version string: %v", err)
+		return errors.Wrap(err).WithOp("parse-semver").With("version-string", cfg.CurrentVersion)
 	}
 	if cfg.CheckInterval == 0 {
 		cfg.CheckInterval = defaultCheckInterval
@@ -72,7 +72,7 @@ func (cfg *Config) loop() error {
 		res, err := cfg.check()
 
 		if err != nil {
-			log.Errorf("Problem checking for update: %v", err)
+			errors.Wrap(err).WithOp("check-update").Report()
 		} else {
 			if res == nil {
 				log.Debug("No update available")
@@ -82,13 +82,13 @@ func (cfg *Config) loop() error {
 				if errRecover != nil {
 					// This should never happen, if this ever happens it means bad news such as
 					// a missing executable file.
-					return fmt.Errorf("Failed to recover from failed update attempt: %v\n", errRecover)
+					return errors.Wrap(errRecover).WithOp("recover-from-failed-update")
 				}
 				if err == nil {
 					log.Debugf("Patching succeeded!")
 					return nil
 				}
-				log.Errorf("Patching failed: %q\n", err)
+				errors.Wrap(err).WithOp("patch").Report()
 			} else {
 				log.Debug("Already up to date.")
 			}
@@ -101,7 +101,7 @@ func (cfg *Config) loop() error {
 func (cfg *Config) isNewerVersion(newer string) bool {
 	nv, err := semver.Parse(newer)
 	if err != nil {
-		log.Errorf("Bad version string on update: %v", err)
+		errors.Wrap(err).WithOp("parse-semver").With("version-string", newer).Report()
 		return false
 	}
 	return nv.GT(cfg.version)
@@ -118,14 +118,14 @@ func (cfg *Config) check() (res *check.Result, err error) {
 	up = update.New().ApplyPatch(update.PATCHTYPE_BSDIFF)
 
 	if _, err = up.VerifySignatureWithPEM(cfg.PublicKey); err != nil {
-		return nil, fmt.Errorf("Problem verifying signature of update: %v", err)
+		return nil, errors.Wrap(err).WithOp("verify-signature")
 	}
 
 	if res, err = param.CheckForUpdate(cfg.URL, up); err != nil {
 		if err == check.NoUpdateAvailable {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("Problem fetching update: %v", err)
+		return nil, errors.Wrap(err).WithOp("fetch-update")
 	}
 
 	return res, nil

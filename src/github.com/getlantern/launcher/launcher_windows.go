@@ -22,7 +22,7 @@ func CreateLaunchFile(autoLaunch bool) {
 
 	lanternPath, err := osext.Executable()
 	if err != nil {
-		log.Errorf("Could not get Lantern directory path: %q", err)
+		errors.Wrap(err).WithOp("get-lantern-path").Report()
 		return
 	}
 
@@ -36,6 +36,6 @@ func CreateLaunchFile(autoLaunch bool) {
 
 	err = gowin.WriteStringReg("HKCU", runDir, "Lantern", startupCommand)
 	if err != nil {
-		log.Errorf("Error setting Lantern auto-start registry key: %q", err)
+		errors.Wrap(err).WithOp("set-registry").Report()
 	}
 }

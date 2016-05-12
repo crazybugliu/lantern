@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/getlantern/errors"
 	"github.com/getlantern/filepersist"
 )
 
@@ -65,20 +66,20 @@ func quit() {
 func SetIcon(iconBytes []byte) {
 	f, err := ioutil.TempFile("", "systray_temp_icon")
 	if err != nil {
-		log.Errorf("Unable to create temp icon: %v", err)
+		errors.Wrap(err).WithOp("create-temp-file").Report()
 		return
 	}
 	defer f.Close()
 	_, err = f.Write(iconBytes)
 	if err != nil {
-		log.Errorf("Unable to write icon to temp file %v: %v", f.Name(), f)
+		errors.Wrap(err).WithOp("write-icon-file").Report()
 		return
 	}
 	// Need to close file before we load it to make sure contents is flushed.
 	f.Close()
 	name, err := strUTF16(f.Name())
 	if err != nil {
-		log.Errorf("Unable to convert name to string pointer: %v", err)
+		errors.Wrap(err).WithOp("strUTF16").With("string", f.Name()).Report()
 		return
 	}
 	_setIcon.Call(name.Raw())
@@ -94,7 +95,7 @@ func SetTitle(title string) {
 func SetTooltip(tooltip string) {
 	t, err := strUTF16(tooltip)
 	if err != nil {
-		log.Errorf("Unable to convert tooltip to string pointer: %v", err)
+		errors.Wrap(err).WithOp("strUTF16").With("string", tooltip).Report()
 		return
 	}
 	_setTooltip.Call(t.Raw())
@@ -111,12 +112,12 @@ func addOrUpdateMenuItem(item *MenuItem) {
 	}
 	title, err := strUTF16(item.title)
 	if err != nil {
-		log.Errorf("Unable to convert title to string pointer: %v", err)
+		errors.Wrap(err).WithOp("strUTF16").With("string", item.title).Report()
 		return
 	}
 	tooltip, err := strUTF16(item.tooltip)
 	if err != nil {
-		log.Errorf("Unable to convert tooltip to string pointer: %v", err)
+		errors.Wrap(err).WithOp("strUTF16").With("string", item.tooltip).Report()
 		return
 	}
 	_add_or_update_menu_item.Call(

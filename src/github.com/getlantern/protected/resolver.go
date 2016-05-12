@@ -2,11 +2,11 @@ package protected
 
 import (
 	"crypto/rand"
-	"errors"
 	"math/big"
 	"net"
 	"time"
 
+	"github.com/getlantern/errors"
 	"github.com/miekg/dns"
 )
 
@@ -59,7 +59,7 @@ func dnsLookup(addr string, conn net.Conn) (*DnsResponse, error) {
 
 	response, err := dnsConn.ReadMsg()
 	if err != nil {
-		log.Errorf("Could not process DNS response: %v", err)
+		errors.Wrap(err).WithOp("dns").Report()
 		return nil, err
 	}
 

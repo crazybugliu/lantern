@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Yawning/obfs4/common/log"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/eventual"
 	"github.com/getlantern/flashlight/util"
 )
@@ -92,7 +94,7 @@ func CurrentFeed() *Feed {
 
 func handleError(err error) {
 	feed = nil
-	log.Error(err)
+	errors.Wrap(err).Report()
 }
 
 // GetFeed creates an http.Client and fetches the latest

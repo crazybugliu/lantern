@@ -2,10 +2,10 @@ package proxiedsites
 
 import (
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	"github.com/getlantern/detour"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/golog"
 	"github.com/getlantern/proxiedsites"
 
@@ -37,7 +37,7 @@ func Configure(cfg *proxiedsites.Config) {
 	if service == nil {
 		// Initializing service.
 		if err := start(); err != nil {
-			log.Errorf("Unable to register service: %q", err)
+			errors.Wrap(err).WithOp("register-service").Report()
 		}
 	} else if delta != nil {
 		// Sending delta.
@@ -48,7 +48,7 @@ func Configure(cfg *proxiedsites.Config) {
 		b, err := json.Marshal(message)
 
 		if err != nil {
-			log.Errorf("Unable to publish delta to UI: %v", err)
+			errors.Wrap(err).WithOp("publish-to-ui").Report()
 		} else {
 			service.Out <- b
 		}
@@ -87,7 +87,7 @@ func start() (err error) {
 	}
 
 	if service, err = ui.Register(messageType, newMessage, helloFn); err != nil {
-		return fmt.Errorf("Unable to register channel: %q", err)
+		return errors.Wrap(err).WithOp("register-channel").With("message-type", messageType)
 	}
 
 	// Initializing reader.

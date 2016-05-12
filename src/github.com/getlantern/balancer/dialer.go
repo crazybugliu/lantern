@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/getlantern/errors"
 	"github.com/getlantern/withtimeout"
 )
 
@@ -156,7 +157,7 @@ func (d *dialer) defaultCheck() bool {
 	ok, timedOut, _ := withtimeout.Do(60*time.Second, func() (interface{}, error) {
 		req, err := http.NewRequest("GET", "http://www.google.com/humans.txt", nil)
 		if err != nil {
-			log.Errorf("Could not create HTTP request?")
+			errors.Wrap(err).WithOp("new-request").Report()
 			return false, nil
 		}
 		if d.OnRequest != nil {
@@ -174,7 +175,7 @@ func (d *dialer) defaultCheck() bool {
 		return resp.StatusCode == 200, nil
 	})
 	if timedOut {
-		log.Errorf("Timed out checking dialer at: %v", d.Label)
+		errors.New("time out").WithOp("check dialer").With("name", d.Label).Report()
 	}
 	return !timedOut && ok.(bool)
 }

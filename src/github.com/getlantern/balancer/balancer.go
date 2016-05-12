@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/getlantern/errors"
 	"github.com/getlantern/golog"
 )
 
@@ -71,7 +72,7 @@ func (b *Balancer) Dial(network, addr string) (net.Conn, error) {
 	// send HTTP traffic to dialers marked as trusted.
 	if port == "" || port == "80" || port == "8080" {
 		if b.trusted.Len() == 0 {
-			return nil, fmt.Errorf("No trusted dialers!")
+			return nil, errors.New("no trusted dialers")
 		}
 		dialers = b.trusted
 	} else {
@@ -80,7 +81,7 @@ func (b *Balancer) Dial(network, addr string) (net.Conn, error) {
 
 	for i := 0; i < dialAttempts; i++ {
 		if dialers.Len() == 0 {
-			return nil, fmt.Errorf("No dialers left to try on pass %v", i)
+			return nil, errors.New("no dialers left").With("pass", i)
 		}
 		b.mu.Lock()
 		// heap will re-adjust based on new metrics
@@ -90,7 +91,7 @@ func (b *Balancer) Dial(network, addr string) (net.Conn, error) {
 		log.Debugf("Dialing %s://%s with %s", network, addr, d.Label)
 		conn, err := d.dial(network, addr)
 		if err != nil {
-			log.Errorf("Unable to dial via %v to %s://%s: %v on pass %v...continuing", d.Label, network, addr, err, i)
+			errors.Wrap(err).ProxyAddr(d.Label).OriginSite(addr).With("pass", i).Report()
 			continue
 		}
 		log.Debugf("Successfully dialed via %v to %v://%v on pass %v", d.Label, network, addr, i)

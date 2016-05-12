@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/getlantern/errors"
 	"github.com/getlantern/golog"
 	"github.com/getlantern/i18n"
 
@@ -46,7 +47,7 @@ func main() {
 		// At this point, continue execution without panicwrap support. There
 		// are known cases where panicwrap will fail to fork, such as Windows
 		// GUI app
-		log.Errorf("Error setting up panic wrapper: %v", err)
+		errors.Wrap(err).WithOp("panicwrap").Report()
 	} else {
 		// If exitStatus >= 0, then we're the parent process.
 		if exitStatus >= 0 {
@@ -63,7 +64,7 @@ func main() {
 		go func() {
 			log.Debugf("Starting pprof page at http://%s/debug/pprof", *pprofAddr)
 			if err := http.ListenAndServe(*pprofAddr, nil); err != nil {
-				log.Error(err)
+				errors.Wrap(err).WithOp("pprof").With("addr", *pprofAddr).Report()
 			}
 		}()
 	}
@@ -82,7 +83,7 @@ func main() {
 func _main(a *app.App) func() {
 	return func() {
 		if err := doMain(a); err != nil {
-			log.Error(err)
+			errors.Wrap(err).Report()
 		}
 		log.Debug("Lantern stopped")
 

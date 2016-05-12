@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/getlantern/errors"
 	"github.com/getlantern/eventual"
 	"github.com/getlantern/flashlight"
 	"github.com/getlantern/golog"
@@ -68,7 +69,7 @@ func (app *App) LogPanicAndExit(msg string) {
 
 	<-logging.Configure(eventual.DefaultGetter(""), "", cfg.Client.DeviceID, flashlight.Version, flashlight.RevisionDate)
 
-	log.Error(msg)
+	errors.New(msg).Report()
 
 	logging.Flush()
 	_ = logging.Close()
@@ -140,7 +141,7 @@ func (app *App) beforeStart(cfg *config.Config) bool {
 	bootstrap, err := config.ReadBootstrapSettings()
 	var startupURL string
 	if err != nil {
-		log.Errorf("Could not read settings? %v", err)
+		errors.Wrap(err).WithOp("read-bootstrap-settings").Report()
 		startupURL = ""
 	} else {
 		startupURL = bootstrap.StartupUrl

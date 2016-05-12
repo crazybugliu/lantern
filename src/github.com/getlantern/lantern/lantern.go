@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/getlantern/errors"
 	"github.com/getlantern/flashlight"
 	"github.com/getlantern/flashlight/client"
 	"github.com/getlantern/flashlight/config"
@@ -96,7 +97,7 @@ func (uc *userConfig) GetUserID() string {
 func run(configDir string) {
 	err := os.MkdirAll(configDir, 0755)
 	if os.IsExist(err) {
-		log.Errorf("Unable to create configDir at %v: %v", configDir, err)
+		errors.Wrap(err).With("config-directory", configDir).Report()
 		return
 	}
 

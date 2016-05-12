@@ -3,7 +3,6 @@ package fronted
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -13,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/getlantern/errors"
 	"github.com/getlantern/eventual"
 	"github.com/getlantern/golog"
 	"github.com/getlantern/idletiming"
@@ -39,7 +39,7 @@ type direct struct {
 func Configure(pool *x509.CertPool, masquerades map[string][]*Masquerade) {
 	log.Debug("Configuring fronted")
 	if masquerades == nil || len(masquerades) == 0 {
-		log.Errorf("No masquerades!!")
+		errors.New("No masquerades").Report()
 		return
 	}
 
@@ -50,7 +50,7 @@ func Configure(pool *x509.CertPool, masquerades map[string][]*Masquerade) {
 	}
 
 	if size == 0 {
-		log.Errorf("No masquerades!!")
+		errors.New("No masquerades").Report()
 		return
 	}
 
@@ -99,7 +99,7 @@ func (d *direct) vetOne() {
 			return
 		}
 		if !masqueradesRemain {
-			log.Trace("Nothing left to vet")
+			errors.New("Nothing left to vet").Report()
 			return
 		}
 	}
@@ -130,7 +130,7 @@ func (d *direct) Do(req *http.Request) (*http.Response, error) {
 	for i := 0; i < 6; i++ {
 		client := d.NewDirectHttpClient()
 		if resp, err := client.Do(req); err != nil {
-			log.Errorf("Could not complete request %v", err)
+			errors.Wrap(err).Report()
 		} else if resp.StatusCode > 199 && resp.StatusCode < 400 {
 			return resp, err
 		} else {

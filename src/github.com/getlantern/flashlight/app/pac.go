@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/getlantern/detour"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/filepersist"
 	"github.com/getlantern/pac"
 
@@ -172,13 +173,13 @@ func cyclePAC() {
 func doPACOn(pacURL string) {
 	err := pac.On(pacURL)
 	if err != nil {
-		log.Errorf("Unable to set lantern as system proxy: %v", err)
+		errors.Wrap(err).WithOp("set-system-proxy").Report()
 	}
 }
 
 func doPACOff(pacURL string) {
 	err := pac.Off(pacURL)
 	if err != nil {
-		log.Errorf("Unable to unset lantern as system proxy: %v", err)
+		errors.Wrap(err).WithOp("unset-system-proxy").Report()
 	}
 }

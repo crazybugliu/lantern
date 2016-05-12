@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/getlantern/appdir"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/launcher"
 	"github.com/getlantern/yaml"
 
@@ -64,7 +65,7 @@ func loadSettingsFrom(version, revisionDate, buildDate, path string) *Settings {
 	if bytes, err := ioutil.ReadFile(path); err != nil {
 		log.Debugf("Could not read file %v", err)
 	} else if err := yaml.Unmarshal(bytes, settings); err != nil {
-		log.Errorf("Could not load yaml %v", err)
+		errors.Wrap(err).WithOp("load-settings").Report()
 		// Just keep going with the original settings not from disk.
 	} else {
 		log.Debugf("Loaded settings from %v", path)
@@ -84,7 +85,7 @@ func loadSettingsFrom(version, revisionDate, buildDate, path string) *Settings {
 	once.Do(func() {
 		err := settings.start()
 		if err != nil {
-			log.Errorf("Unable to register settings service: %q", err)
+			errors.Wrap(err).WithOp("register-settings-service").Report()
 			return
 		}
 		go settings.read(service.In, service.Out)
@@ -136,7 +137,7 @@ func (s *Settings) checkBool(data map[string]interface{}, name string, f func(bo
 	if v, ok := data[name].(bool); ok {
 		f(v)
 	} else {
-		log.Errorf("Could not convert %v in %v", name, data)
+		errors.New("can not convert to bool").With("name", name).With("value", data[name]).Report()
 	}
 }
 
@@ -144,7 +145,7 @@ func (s *Settings) checkString(data map[string]interface{}, name string, f func(
 	if v, ok := data[name].(string); ok {
 		f(v)
 	} else {
-		log.Errorf("Could not convert %v in %v", name, data)
+		errors.New("can not convert to string").With("name", name).With("value", data[name]).Report()
 	}
 }
 
@@ -154,9 +155,9 @@ func (s *Settings) save() {
 	s.Lock()
 	defer s.Unlock()
 	if bytes, err := yaml.Marshal(s); err != nil {
-		log.Errorf("Could not create yaml from settings %v", err)
+		errors.Wrap(err).Report()
 	} else if err := ioutil.WriteFile(path, bytes, 0644); err != nil {
-		log.Errorf("Could not write settings file %v", err)
+		errors.Wrap(err).With("file", filepath.Base(path)).Report()
 	} else {
 		log.Debugf("Saved settings to %s with contents %v", path, string(bytes))
 	}

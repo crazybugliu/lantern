@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/getlantern/appdir"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/golog"
 	"github.com/kardianos/osext"
 )
@@ -49,7 +50,7 @@ func CreateLaunchFile(autoLaunch bool) {
 
 	lanternPath, err := osext.Executable()
 	if err != nil {
-		log.Errorf("Could not get Lantern directory path: %q", err)
+		errors.Wrap(err).WithOp("get-lantern-path").Report()
 		return
 	}
 	log.Debugf("Using lantern path: %v", lanternPath)
@@ -59,11 +60,11 @@ func CreateLaunchFile(autoLaunch bool) {
 
 	err = t.Execute(&content, &Plist{RunAtLoad: autoLaunch, Path: lanternPath})
 	if err != nil {
-		log.Errorf("Error writing plist template: %q", err)
+		errors.Wrap(err).WithOp("write-plist-template").Report()
 		return
 	}
 
 	if err = ioutil.WriteFile(fname, content.Bytes(), 0755); err != nil {
-		log.Errorf("Error writing to launchd plist file: %q", err)
+		errors.Wrap(err).WithOp("write-launchd-plist").Report()
 	}
 }

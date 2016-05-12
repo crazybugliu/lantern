@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/getlantern/deepcopy"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/golog"
 )
 
@@ -231,11 +232,11 @@ func (m *Manager) poll() time.Duration {
 	log.Debugf("Polling for new config from yamlconf")
 	mutate, waitTime, err := m.CustomPoll(m.getCfg())
 	if err != nil {
-		log.Errorf("Custom polling failed: %v", err)
+		errors.Wrap(err).WithOp("poll-config").Report()
 	} else {
 		err = m.Update(mutate)
 		if err != nil {
-			log.Errorf("Unable to apply update from custom polling: %v", err)
+			errors.Wrap(err).WithOp("apply-config").Report()
 		}
 	}
 	return waitTime

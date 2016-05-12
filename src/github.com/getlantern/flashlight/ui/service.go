@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+
+	"github.com/getlantern/errors"
 )
 
 type helloFnType func(func(interface{}) error) error
@@ -37,7 +39,7 @@ func (s *Service) write() {
 			log.Tracef("Creating new envelope for %v", s.Type)
 			b, err := newEnvelope(s.Type, msg)
 			if err != nil {
-				log.Error(err)
+				errors.Wrap(err).Report()
 				continue
 			}
 			defaultUIChannel.Out <- b
@@ -120,7 +122,7 @@ func start() {
 			// Delegating task...
 			if s.helloFn != nil {
 				if err := s.helloFn(writer); err != nil {
-					log.Errorf("Error writing to socket: %q", err)
+					errors.Wrap(err).Report()
 				}
 			}
 		}
@@ -142,20 +144,20 @@ func read() {
 		err := json.Unmarshal(b, &envType)
 
 		if err != nil {
-			log.Errorf("Unable to parse JSON update from browser: %q", err)
+			errors.Wrap(err).WithOp("parse-JSON").Report()
 			continue
 		}
 
 		// Delegating response to the service that registered with the given type.
 		if services[envType.Type] == nil {
-			log.Errorf("Message type %v belongs to an unknown service.", envType.Type)
+			errors.New("unknown message type").With("message-type", envType.Type).Report()
 			continue
 		}
 
 		env := &Envelope{}
 		err = json.Unmarshal(b, env)
 		if err != nil {
-			log.Errorf("Unable to unmarshal message of type %v: %v", envType.Type, err)
+			errors.Wrap(err).With("message-type", envType.Type).Report()
 			continue
 		}
 		log.Tracef("Forwarding message: %v", env)

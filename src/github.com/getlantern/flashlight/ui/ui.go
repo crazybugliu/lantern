@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/getlantern/edgedetect"
+	"github.com/getlantern/errors"
 	"github.com/getlantern/golog"
 	"github.com/getlantern/tarfs"
 	"github.com/skratchdot/open-golang/open"
@@ -45,7 +46,7 @@ func init() {
 	localResourcesPath := ""
 	_, curDir, _, ok := runtime.Caller(1)
 	if !ok {
-		log.Errorf("Unable to determine caller directory")
+		errors.New("Unable to determine caller directory").Report()
 	} else {
 		localResourcesPath = filepath.Join(curDir, LocalUIDir)
 		absLocalResourcesPath, err := filepath.Abs(localResourcesPath)
@@ -107,7 +108,7 @@ func Start(requestedAddr string, allowRemote bool, extUrl string) (string, error
 	go func() {
 		err := server.Serve(l)
 		if err != nil {
-			log.Errorf("Error serving: %v", err)
+			errors.Wrap(err).Report()
 		}
 	}()
 	uiaddr = fmt.Sprintf("http://%v", l.Addr().String())
@@ -161,7 +162,7 @@ func Show() {
 		addr := getPreferredUIAddr()
 		err := open.Run(addr)
 		if err != nil {
-			log.Errorf("Error opening page to `%v`: %v", addr, err)
+			errors.Wrap(err).With("address", addr).Report()
 		}
 
 		onceBody := func() {
@@ -188,6 +189,6 @@ func openExternalUrl(u string) {
 	time.Sleep(4 * time.Second)
 	err := open.Run(url)
 	if err != nil {
-		log.Errorf("Error opening external page to `%v`: %v", uiaddr, err)
+		errors.Wrap(err).With("address", uiaddr).Report()
 	}
 }

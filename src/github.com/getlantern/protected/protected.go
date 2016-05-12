@@ -3,7 +3,6 @@
 package protected
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getlantern/errors"
 	"github.com/getlantern/golog"
 )
 
@@ -101,7 +101,7 @@ func Resolve(addr string) (*net.TCPAddr, error) {
 	// represented by file
 	fileConn, err := net.FileConn(file)
 	if err != nil {
-		log.Errorf("Error returning a copy of the network connection: %v", err)
+		errors.Wrap(err).Report()
 		return nil, err
 	}
 
@@ -110,12 +110,12 @@ func Resolve(addr string) (*net.TCPAddr, error) {
 	log.Debugf("performing dns lookup...!!")
 	result, err := dnsLookup(host, fileConn)
 	if err != nil {
-		log.Errorf("Error doing DNS resolution: %v", err)
+		errors.Wrap(err).WithOp("dns-lookup").Report()
 		return nil, err
 	}
 	ipAddr, err := result.PickRandomIP()
 	if err != nil {
-		log.Errorf("No IP address available: %v", err)
+		errors.Wrap(err).WithOp("pick-random-ip").Report()
 		return nil, err
 	}
 	return &net.TCPAddr{IP: ipAddr, Port: port}, nil
@@ -138,7 +138,7 @@ func Dial(network, addr string, timeout time.Duration) (net.Conn, error) {
 	// do DNS query
 	IPAddr := net.ParseIP(host)
 	if IPAddr == nil {
-		log.Errorf("Couldn't parse IP address %v", host)
+		errors.Wrap(err).WithOp("parse-ip").With("address", host).Report()
 		return nil, err
 	}
 
@@ -146,7 +146,7 @@ func Dial(network, addr string, timeout time.Duration) (net.Conn, error) {
 
 	socketFd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)
 	if err != nil {
-		log.Errorf("Could not create socket: %v", err)
+		errors.Wrap(err).WithOp("create-socket").Report()
 		return nil, err
 	}
 	conn.socketFd = socketFd
@@ -161,14 +161,14 @@ func Dial(network, addr string, timeout time.Duration) (net.Conn, error) {
 
 	err = conn.connectSocket()
 	if err != nil {
-		log.Errorf("Could not connect to socket: %v", err)
+		errors.Wrap(err).WithOp("connect-socket").Report()
 		return nil, err
 	}
 
 	// finally, convert the socket fd to a net.Conn
 	err = conn.convert()
 	if err != nil {
-		log.Errorf("Error converting protected connection: %v", err)
+		errors.Wrap(err).WithOp("convert-socket").Report()
 		return nil, err
 	}
 
@@ -259,12 +259,12 @@ func setQueryTimeouts(c net.Conn) {
 func SplitHostPort(addr string) (string, int, error) {
 	host, sPort, err := net.SplitHostPort(addr)
 	if err != nil {
-		log.Errorf("Could not split network address: %v", err)
+		errors.Wrap(err).With("address", addr).Report()
 		return "", 0, err
 	}
 	port, err := strconv.Atoi(sPort)
 	if err != nil {
-		log.Errorf("No port number found %v", err)
+		errors.Wrap(err).WithOp("atoi").With("string", sPort).Report()
 		return "", 0, err
 	}
 	return host, port, nil

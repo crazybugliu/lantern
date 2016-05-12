@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
+
+	"github.com/getlantern/errors"
 )
 
 // Config is a configuration for a Dialer.
@@ -40,7 +42,7 @@ func NewDialer(cfg Config) func(network, addr string) (net.Conn, error) {
 func (d *dialer) Dial(network, addr string) (net.Conn, error) {
 	conn, err := d.DialServer()
 	if err != nil {
-		return nil, fmt.Errorf("Unable to dial server %v: %s", d.Label, err)
+		return nil, errors.Wrap(err).ProxyAddr(d.Label)
 	}
 	// Look for our special hacked "connect" transport used to signal
 	// that we should send a CONNECT request and tunnel all traffic through
@@ -58,16 +60,16 @@ func (d *dialer) Dial(network, addr string) (net.Conn, error) {
 
 func (d *dialer) sendCONNECT(network, addr string, conn net.Conn) error {
 	if !strings.Contains(network, "tcp") {
-		return fmt.Errorf("%s connections are not supported, only tcp is supported", network)
+		return errors.Wrap(fmt.Errorf("%s connections are not supported, only tcp is supported", network))
 	}
 
 	req, err := buildCONNECTRequest(addr, d.OnRequest)
 	if err != nil {
-		return fmt.Errorf("Unable to construct CONNECT request: %s", err)
+		return errors.Wrap(err).ProxyAddr(addr)
 	}
 	err = req.Write(conn)
 	if err != nil {
-		return fmt.Errorf("Unable to write CONNECT request: %s", err)
+		return errors.Wrap(err).ProxyAddr(addr)
 	}
 
 	r := bufio.NewReader(conn)
@@ -90,10 +92,10 @@ func buildCONNECTRequest(addr string, onRequest func(req *http.Request)) (*http.
 func checkCONNECTResponse(r *bufio.Reader, req *http.Request) error {
 	resp, err := http.ReadResponse(r, req)
 	if err != nil {
-		return fmt.Errorf("Error reading CONNECT response: %s", err)
+		return errors.Wrap(err)
 	}
 	if !sameStatusCodeClass(http.StatusOK, resp.StatusCode) {
-		return fmt.Errorf("Bad status code on CONNECT response: %d", resp.StatusCode)
+		return errors.New("bad status code").With("status-code", resp.StatusCode)
 	}
 	return nil
 }

@@ -3,7 +3,6 @@ package tarfs
 import (
 	"archive/tar"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/getlantern/errors"
 	"github.com/getlantern/golog"
 )
 
@@ -46,7 +46,7 @@ func New(tarData []byte, local string) (*FileSystem, error) {
 			if os.IsNotExist(err) {
 				log.Tracef("Local dir %v does not exist, not using\n", local)
 			} else {
-				log.Errorf("Unable to stat local dir %v, not using: %v\n", local, err)
+				errors.Wrap(err).With("directory", local)
 			}
 			local = ""
 		} else {

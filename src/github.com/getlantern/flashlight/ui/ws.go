@@ -6,6 +6,7 @@ import (
 	"path"
 	"sync"
 
+	"github.com/getlantern/errors"
 	"github.com/gorilla/websocket"
 )
 
@@ -58,7 +59,7 @@ func NewChannel(p string, onConnect ConnectFunc) *UIChannel {
 		// Upgrade with a HTTP request returns a websocket connection
 		ws, err := upgrader.Upgrade(resp, req, nil)
 		if err != nil {
-			log.Errorf("Unable to upgrade %v to websocket: %v", p, err)
+			errors.Wrap(err).WithOp("upgrade-socket").With("path", p).Report()
 			return
 		}
 
@@ -70,7 +71,7 @@ func NewChannel(p string, onConnect ConnectFunc) *UIChannel {
 				return ws.WriteMessage(websocket.TextMessage, b)
 			})
 			if err != nil {
-				log.Errorf("Error processing onConnect, disconnecting websocket: %v", err)
+				errors.Wrap(err).WithOp("on-connect").Report()
 				if err := ws.Close(); err != nil {
 					log.Debugf("Error closing WebSockets connection: %s", err)
 				}
