@@ -93,7 +93,7 @@ func CurrentFeed() *Feed {
 
 func handleError(err error) {
 	feed = nil
-	errors.Wrap(err).Report()
+	errors.Report(err)
 }
 
 // GetFeed creates an http.Client and fetches the latest

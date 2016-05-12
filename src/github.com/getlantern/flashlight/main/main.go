@@ -83,7 +83,7 @@ func main() {
 func _main(a *app.App) func() {
 	return func() {
 		if err := doMain(a); err != nil {
-			errors.Wrap(err).Report()
+			errors.Report(err)
 		}
 		log.Debug("Lantern stopped")
 

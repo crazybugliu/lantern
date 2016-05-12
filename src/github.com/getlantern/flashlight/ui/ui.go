@@ -108,7 +108,7 @@ func Start(requestedAddr string, allowRemote bool, extUrl string) (string, error
 	go func() {
 		err := server.Serve(l)
 		if err != nil {
-			errors.Wrap(err).Report()
+			errors.Report(err)
 		}
 	}()
 	uiaddr = fmt.Sprintf("http://%v", l.Addr().String())

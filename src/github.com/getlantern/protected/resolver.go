@@ -48,7 +48,7 @@ func dnsLookup(addr string, conn net.Conn) (*DnsResponse, error) {
 	dnsConn := &dns.Conn{Conn: conn}
 	defer func() {
 		if err := dnsConn.Close(); err != nil {
-			errors.Wrap(err).Report()
+			errors.Report(err)
 		}
 	}()
 
@@ -60,7 +60,7 @@ func dnsLookup(addr string, conn net.Conn) (*DnsResponse, error) {
 	m.RecursionDesired = true
 
 	if err := dnsConn.WriteMsg(m); err != nil {
-		errors.Wrap(err).Report()
+		errors.Report(err)
 	}
 
 	response, err := dnsConn.ReadMsg()

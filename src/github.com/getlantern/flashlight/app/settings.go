@@ -155,7 +155,7 @@ func (s *Settings) save() {
 	s.Lock()
 	defer s.Unlock()
 	if bytes, err := yaml.Marshal(s); err != nil {
-		errors.Wrap(err).Report()
+		errors.Report(err)
 	} else if err := ioutil.WriteFile(path, bytes, 0644); err != nil {
 		errors.Wrap(err).With("file", filepath.Base(path)).Report()
 	} else {

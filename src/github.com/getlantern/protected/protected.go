@@ -71,7 +71,7 @@ func Resolve(addr string) (*net.TCPAddr, error) {
 	}
 	defer func() {
 		if err := syscall.Close(socketFd); err != nil {
-			errors.Wrap(err).Report()
+			errors.Report(err)
 		}
 	}()
 
@@ -101,7 +101,7 @@ func Resolve(addr string) (*net.TCPAddr, error) {
 	file := os.NewFile(fd, "")
 	defer func() {
 		if err := file.Close(); err != nil {
-			errors.Wrap(err).Report()
+			errors.Report(err)
 		}
 	}()
 
@@ -109,7 +109,7 @@ func Resolve(addr string) (*net.TCPAddr, error) {
 	// represented by file
 	fileConn, err := net.FileConn(file)
 	if err != nil {
-		errors.Wrap(err).Report()
+		errors.Report(err)
 		return nil, err
 	}
 
@@ -209,11 +209,11 @@ func (conn *ProtectedConn) convert() error {
 	// dup the fd and return a copy
 	fileConn, err := net.FileConn(file)
 	if err != nil {
-		errors.Wrap(err).Report()
+		errors.Report(err)
 	}
 	// closes the original fd
 	if err = file.Close(); err != nil {
-		errors.Wrap(err).Report()
+		errors.Report(err)
 	}
 	conn.socketFd = socketError
 	if err != nil {
@@ -234,7 +234,7 @@ func (conn *ProtectedConn) cleanup() {
 
 	if conn.socketFd != socketError {
 		if err := syscall.Close(conn.socketFd); err != nil {
-			errors.Wrap(err).Report()
+			errors.Report(err)
 		}
 		conn.socketFd = socketError
 	}

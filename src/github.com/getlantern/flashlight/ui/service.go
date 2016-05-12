@@ -39,7 +39,7 @@ func (s *Service) write() {
 			log.Tracef("Creating new envelope for %v", s.Type)
 			b, err := newEnvelope(s.Type, msg)
 			if err != nil {
-				errors.Wrap(err).Report()
+				errors.Report(err)
 				continue
 			}
 			defaultUIChannel.Out <- b
@@ -122,7 +122,7 @@ func start() {
 			// Delegating task...
 			if s.helloFn != nil {
 				if err := s.helloFn(writer); err != nil {
-					errors.Wrap(err).Report()
+					errors.Report(err)
 				}
 			}
 		}

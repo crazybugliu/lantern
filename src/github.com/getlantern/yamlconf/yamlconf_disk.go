@@ -111,7 +111,7 @@ func doReadFromDisk(filePath string, allowObfuscation bool, emptyConfig func() C
 	}
 	defer func() {
 		if err := infile.Close(); err != nil {
-			errors.Wrap(err).Report()
+			errors.Report(err)
 		}
 	}()
 
@@ -190,7 +190,7 @@ func (m *Manager) writeToDisk(cfg Config) error {
 	}
 	defer func() {
 		if err := outfile.Close(); err != nil {
-			errors.Wrap(err).Report()
+			errors.Report(err)
 		}
 	}()
 

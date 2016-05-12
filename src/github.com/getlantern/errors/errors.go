@@ -4,7 +4,7 @@ Package errors defines error types used across Lantern project.
   errors.Initialize("appVersion", myErrorReporter, false)
   ...
   if n, err := Foo(); err != nil {
-    errors.Wrap(err).Report()
+    errors.Report(err)
   }
 
 Wrap() method will try as much as possible to extract details from the error
@@ -148,6 +148,11 @@ func Wrap(err error) *Error {
 	e.attachStack(2)
 	e.applyDefaults()
 	return e
+}
+
+// Report is a shortcut for Wrap(err).Report()
+func Report(err error) {
+	Wrap(err).Report()
 }
 
 // Error wraps system and application defined errors in unified structure for

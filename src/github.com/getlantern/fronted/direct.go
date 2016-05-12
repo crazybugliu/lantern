@@ -130,7 +130,7 @@ func (d *direct) Do(req *http.Request) (*http.Response, error) {
 	for i := 0; i < 6; i++ {
 		client := d.NewDirectHttpClient()
 		if resp, err := client.Do(req); err != nil {
-			errors.Wrap(err).Report()
+			errors.Report(err)
 		} else if resp.StatusCode > 199 && resp.StatusCode < 400 {
 			return resp, err
 		} else {

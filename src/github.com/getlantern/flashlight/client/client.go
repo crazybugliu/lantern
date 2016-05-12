@@ -171,7 +171,7 @@ func (client *Client) Configure(cfg *ClientConfig, proxyAll func() bool) {
 
 	bal, err := client.initBalancer(cfg)
 	if err != nil {
-		errors.Wrap(err).Report()
+		errors.Report(err)
 	} else if bal != nil {
 		client.rp.Set(client.newReverseProxy(bal))
 	}
