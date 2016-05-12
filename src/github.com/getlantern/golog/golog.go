@@ -131,7 +131,7 @@ type logger struct {
 func (l *logger) linePrefix(skipFrames int) string {
 	runtime.Callers(skipFrames, l.pc)
 	funcForPc := runtime.FuncForPC(l.pc[0])
-	file, line := funcForPc.FileLine(l.pc[0])
+	file, line := funcForPc.FileLine(l.pc[0] - 1)
 	return fmt.Sprintf("%s%s:%d ", l.prefix, filepath.Base(file), line)
 }
 
