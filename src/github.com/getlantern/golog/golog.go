@@ -58,6 +58,8 @@ type Logger interface {
 	Error(arg interface{})
 	// Errorf logs to stderr
 	Errorf(message string, args ...interface{})
+	// Error logs to stderr, but caller can choose to skip frames
+	ErrorSkipFrames(arg interface{}, skipFrames int)
 
 	// Fatal logs to stderr and then exits with status 1
 	Fatal(arg interface{})
@@ -167,6 +169,10 @@ func (l *logger) Error(arg interface{}) {
 
 func (l *logger) Errorf(message string, args ...interface{}) {
 	l.printf(GetOutputs().ErrorOut, 4, "ERROR", message, args...)
+}
+
+func (l *logger) ErrorSkipFrames(arg interface{}, skipFrames int) {
+	l.print(GetOutputs().ErrorOut, skipFrames+4, "ERROR", arg)
 }
 
 func (l *logger) Fatal(arg interface{}) {
