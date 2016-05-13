@@ -128,7 +128,7 @@ func (client *Client) intercept(resp http.ResponseWriter, req *http.Request) {
 	success := make(chan bool, 1)
 	go func() {
 		if e := respondOK(clientConn, req); e != nil {
-			errors.Wrap(e).WithOp("respond-ok").UserAgent(req.Header.Get("User-Agent")).Report()
+			errors.Wrap(e).WithOp("respond-ok").Request(req).Report()
 			success <- false
 			return
 		}

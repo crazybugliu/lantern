@@ -65,11 +65,11 @@ func (d *dialer) sendCONNECT(network, addr string, conn net.Conn) error {
 
 	req, err := buildCONNECTRequest(addr, d.OnRequest)
 	if err != nil {
-		return errors.Wrap(err).ProxyAddr(addr)
+		return errors.Wrap(err).OriginSite(addr)
 	}
 	err = req.Write(conn)
 	if err != nil {
-		return errors.Wrap(err).ProxyAddr(addr)
+		return errors.Wrap(err).OriginSite(addr)
 	}
 
 	r := bufio.NewReader(conn)
@@ -95,7 +95,7 @@ func checkCONNECTResponse(r *bufio.Reader, req *http.Request) error {
 		return errors.Wrap(err)
 	}
 	if !sameStatusCodeClass(http.StatusOK, resp.StatusCode) {
-		return errors.New("bad status code").With("status-code", resp.StatusCode)
+		return errors.New("Unexpected response status").Response(resp)
 	}
 	return nil
 }

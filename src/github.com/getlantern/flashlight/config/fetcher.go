@@ -150,7 +150,7 @@ func (cf *fetcher) fetchCloudConfig(cfg *Config) ([]byte, error) {
 		log.Debugf("Config unchanged in cloud")
 		return nil, nil
 	} else if resp.StatusCode != 200 {
-		return nil, errors.New("Unexpected response status").With("status-code", resp.StatusCode)
+		return nil, errors.New("Unexpected response status").Response(resp)
 	}
 
 	cf.lastCloudConfigETag[url] = resp.Header.Get(etag)
