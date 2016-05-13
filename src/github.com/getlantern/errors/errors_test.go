@@ -53,13 +53,11 @@ func TestWithFields(t *testing.T) {
 		ProxyType(NoProxy).
 		ProxyAddr("a.b.c.d:80").
 		OriginSite("www.google.com:443").
-		URIScheme("https").
-		UserAgent("Mozilla/5.0...").
 		WithLocale().
 		With("foo", "bar")
 	e.Report()
 	assert.NotEqual(t, rr.err.FileLine, rr.err.ReportFileLine, "should log all fields")
-	expected := "any error Package=errors Func=TestWithFields GoType=*errors.errorString Op=test ProxyType=no_proxy ProxyAddr=a.b.c.d:80 OriginSite=www.google.com:443 URIScheme=https TimeZone=CST Language=CUserAgent=Mozilla/5.0... foo=bar"
+	expected := "any error Package=errors Func=TestWithFields GoType=*errors.errorString Op=test ProxyType=no_proxy ProxyAddr=a.b.c.d:80 OriginSite=www.google.com:443 TimeZone=CST Language=C foo=bar"
 	assert.Equal(t, expected, rr.err.Error(), "should log all fields")
 }
 
@@ -82,8 +80,10 @@ func TestCaptureHTTPError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	_, e := http.Get(ts.URL)
-	err := Wrap(e)
+	req, _ := http.NewRequest("GET", ts.URL, nil)
+	client := &http.Client{}
+	_, e := client.Do(req)
+	err := Wrap(e).Request(req)
 	err.Report()
 	expected := &Error{
 		Package: "errors",
@@ -91,6 +91,13 @@ func TestCaptureHTTPError(t *testing.T) {
 		GoType:  "url.Error",
 		Desc:    "EOF",
 		Op:      "Get",
+		HTTPRequest: &HTTPRequest{
+			Method:    "GET",
+			Scheme:    "http",
+			Protocol:  "HTTP/1.1",
+			HostInURL: ts.URL[7:],
+			Host:      ts.URL[7:],
+		},
 	}
 	assert.Equal(t, expected.Error(), rr.err.Error(), "should log http error")
 }

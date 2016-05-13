@@ -1,10 +1,10 @@
 /*
 Package errors defines error types used across Lantern project.
   // initialize globally
-  errors.Initialize("appVersion", myErrorReporter, false)
+  errors.Initialize("appVersion", myErrorReporter, true)
   ...
   if n, err := Foo(); err != nil {
-    errors.Report(err)
+    errors.Wrap(err).Report() // or simply errors.Report(err)
   }
 
 Wrap() method will try as much as possible to extract details from the error
@@ -14,13 +14,15 @@ be recorded.
 
 Extra fields can be chained in any order, at any time.
 
-  func Foo() *Error {
+  func Connect(addr string) *Error {
   	//...
-    return errors.New("some error").With("some_counter", 1).WithOp("connect")
+    return errors.New("some error").ProxyAddr(addr).
+	  WithOp("connect").With("some_counter", 1)
   }
   ...
-  if err := Foo(); err != nil {
-	err.UserAgent("Mozilla/5.0...").With("proxy_all", true).Report()
+  req *http.Request = ...
+  if err := Connect(); err != nil {
+	err.Request(req).With("proxy_all", true).Report()
   }
 
 If logging=true when calling Initialize(), Report() will get a logger using
@@ -134,6 +136,15 @@ func New(s string) (e *Error) {
 // errors.Wrap(s.l.Close()) regardless there's an error or not. If the error is
 // already wrapped, it is returned as is.
 func Wrap(err error) *Error {
+	return wrapSkipFrames(err, 1)
+}
+
+// Report is a shortcut for Wrap(err).Report()
+func Report(err error) {
+	wrapSkipFrames(err, 1).Report()
+}
+
+func wrapSkipFrames(err error, skip int) *Error {
 	if err == nil {
 		return nil
 	}
@@ -145,18 +156,14 @@ func Wrap(err error) *Error {
 		TS:     time.Now(),
 	}
 	// always skip [Wrap, attachStack]
-	e.attachStack(2)
+	e.attachStack(2 + skip)
 	e.applyDefaults()
 	return e
 }
 
-// Report is a shortcut for Wrap(err).Report()
-func Report(err error) {
-	Wrap(err).Report()
-}
-
 // Error wraps system and application defined errors in unified structure for
-// reporting and logging
+// reporting and logging. It's not meant to be created directly. User New(),
+// Wrap() and Report() instead.
 type Error struct {
 	// Source captures the underlying error that's wrapped by this Error
 	Source error `json:"-"`
@@ -174,6 +181,7 @@ type Error struct {
 	// Go type name or constant/variable name of the error
 	GoType string `json:"type"`
 	// Error description, by either Go library or application
+
 	Desc string `json:"desc"`
 	// The operation which triggers the error to happen
 	Op string `json:"operation,omitempty"`
@@ -189,7 +197,8 @@ type Error struct {
 
 	*ProxyingInfo
 	*UserLocale
-	*UserAgentInfo
+	*HTTPRequest
+	*HTTPResponse
 	*SystemInfo
 }
 
@@ -199,10 +208,43 @@ func (e *Error) Report() {
 	curDirector.report(e)
 }
 
-// WithOp attaches a hint of which operation triggers this Error. Many error
-// types returned by net and os package have Op embeded.
+// WithOp attaches a hint of the operation triggers this Error. Many error
+// types returned by net and os package have Op pre-filled.
 func (e *Error) WithOp(op string) *Error {
 	e.Op = op
+	return e
+}
+
+// Request attaches key information of an `http.Request` to the Error.
+func (e *Error) Request(r *http.Request) *Error {
+	if e.HTTPRequest == nil {
+		e.HTTPRequest = &HTTPRequest{}
+	}
+	e.HTTPRequest.Method = r.Method
+	e.HTTPRequest.Scheme = r.URL.Scheme
+	e.HTTPRequest.HostInURL = r.URL.Host
+	e.HTTPRequest.Host = r.Host
+	e.HTTPRequest.Protocol = r.Proto
+	e.HTTPRequest.Connection = strings.Join(r.Header["Connection"], ",")
+	e.HTTPRequest.Accept = strings.Join(r.Header["Accept"], ",")
+	e.HTTPRequest.AcceptLanguage = strings.Join(r.Header["Accept-Language"], ",")
+	e.HTTPRequest.UserAgent = r.Header.Get("User-Agent")
+	return e
+}
+
+// Response attaches key information of an `http.Response` to the Error. If
+// the response has corresponding Request, and there's no HTTPRequest in the
+// Error, it will call Request internally.
+func (e *Error) Response(r *http.Response) *Error {
+	if e.HTTPResponse == nil {
+		e.HTTPResponse = &HTTPResponse{}
+	}
+	e.HTTPResponse.StatusCode = r.StatusCode
+	e.HTTPResponse.Protocol = r.Proto
+	e.HTTPResponse.ContentType = r.Header.Get("Content-Type")
+	if r.Request != nil && e.HTTPRequest == nil {
+		return e.Request(r.Request)
+	}
 	return e
 }
 
@@ -239,33 +281,6 @@ func (e *Error) OriginSite(v string) *Error {
 		e.ProxyingInfo = &ProxyingInfo{}
 	}
 	e.ProxyingInfo.OriginSite = v
-	return e
-}
-
-// URIScheme attaches the scheme portion of the URI to visit to an Error
-func (e *Error) URIScheme(v string) *Error {
-	if e.ProxyingInfo == nil {
-		e.ProxyingInfo = &ProxyingInfo{}
-	}
-	e.ProxyingInfo.URIScheme = v
-	return e
-}
-
-// HTTPMethod attaches the HTTP method to visit to an Error
-func (e *Error) HTTPMethod(v string) *Error {
-	if e.ProxyingInfo == nil {
-		e.ProxyingInfo = &ProxyingInfo{}
-	}
-	e.ProxyingInfo.HTTPMethod = v
-	return e
-}
-
-// UserAgent attaches the user agent string of the application to an Error
-func (e *Error) UserAgent(v string) *Error {
-	if e.UserAgentInfo == nil {
-		e.UserAgentInfo = &UserAgentInfo{}
-	}
-	e.UserAgentInfo.UserAgent = v
 	return e
 }
 
@@ -332,8 +347,11 @@ func (e *Error) writeTo(w io.Writer) {
 	if e.UserLocale != nil {
 		_, _ = io.WriteString(w, e.UserLocale.String())
 	}
-	if e.UserAgentInfo != nil {
-		_, _ = io.WriteString(w, e.UserAgentInfo.String())
+	if e.HTTPRequest != nil {
+		_, _ = io.WriteString(w, e.HTTPRequest.String())
+	}
+	if e.HTTPResponse != nil {
+		_, _ = io.WriteString(w, e.HTTPResponse.String())
 	}
 	for k, v := range e.Extra {
 		_, _ = io.WriteString(w, " "+k+"="+v)
@@ -452,11 +470,6 @@ type ProxyingInfo struct {
 	Datacenter string `json:"proxy_datacenter,omitempty"`
 	// OriginSite is the site to visit, possibly with port
 	OriginSite string `json:"origin_site,omitempty"`
-	// URIScheme is scheme portion of the URI, http/https/wss, etc
-	URIScheme string `json:"uri_scheme,omitempty"`
-	// HTTPMethod is the access method, GET/PUT/CONNECT, etc. Encrypted and
-	// non-HTTP traffic should all be CONNECT.
-	HTTPMethod string `json:"http_method,omitempty"`
 }
 
 // String returns the string representation of ProxyingInfo
@@ -474,23 +487,64 @@ func (pi *ProxyingInfo) String() string {
 	if pi.OriginSite != "" {
 		_, _ = buf.WriteString(" OriginSite=" + pi.OriginSite)
 	}
-	if pi.URIScheme != "" {
-		_, _ = buf.WriteString(" URIScheme=" + pi.URIScheme)
+	return buf.String()
+}
+
+// HTTPRequest encapsulates key fields of an http.Request
+type HTTPRequest struct {
+	// Method
+	Method string `json:"method,omitempty"`
+	// Scheme
+	Scheme string `json:"scheme,omitempty"`
+	// HostInURL
+	HostInURL string `json:"host_in_url,omitempty"`
+	// Host
+	Host string `json:"host,omitempty"`
+	// Protocol
+	Protocol string `json:"protocol,omitempty"`
+	// Connection header
+	Connection string `json:"connection,omitempty"`
+	// Accept header
+	Accept string `json:"accept,omitempty"`
+	// Accept-Language header
+	AcceptLanguage string `json:"accept_language,omitempty"`
+	// User-Agent header
+	UserAgent string `json:"user_agent,omitempty"`
+}
+
+func (r *HTTPRequest) String() string {
+	var buf bytes.Buffer
+	_, _ = buf.WriteString(fmt.Sprintf(" Request=\"%s %s://%s %s\"", r.Method, r.Scheme, r.HostInURL, r.Protocol))
+	if r.Host != "" {
+		_, _ = buf.WriteString(fmt.Sprintf(" Host=%s", r.Host))
 	}
-	if pi.HTTPMethod != "" {
-		_, _ = buf.WriteString(" HTTPMethod=" + pi.HTTPMethod)
+	if r.Connection != "" {
+		_, _ = buf.WriteString(fmt.Sprintf(" Connection=\"%s\"", r.Connection))
+	}
+	if r.Accept != "" {
+		_, _ = buf.WriteString(fmt.Sprintf(" Accept=\"%s\"", r.Accept))
+	}
+	if r.AcceptLanguage != "" {
+		_, _ = buf.WriteString(fmt.Sprintf(" Accept-Language=\"%s\"", r.AcceptLanguage))
+	}
+	if r.UserAgent != "" {
+		_, _ = buf.WriteString(fmt.Sprintf(" User-Agent=\"%s\"", r.UserAgent))
 	}
 	return buf.String()
 }
 
-// UserAgentInfo encapsulates traits of the browsers or 3rd party applications
-// directing traffic through Lantern.
-type UserAgentInfo struct {
-	UserAgent string `json:"user_agent,omitempty"`
+// HTTPResponse encapsulates key fields of an http.Response
+type HTTPResponse struct {
+	// StatusCode
+	StatusCode int `json:"status_code,omitempty"`
+	// Protocol
+	Protocol string `json:"protocol,omitempty"`
+	// ContentType
+	ContentType string `json:"content_type,omitempty"`
 }
 
-func (ul *UserAgentInfo) String() string {
-	return fmt.Sprintf("UserAgent=%s", ul.UserAgent)
+func (r *HTTPResponse) String() string {
+	return fmt.Sprintf(" Response=\"%s %d\" Content-Type=\"%s\"", r.Protocol, r.StatusCode, r.ContentType)
 }
 
 func parseError(err error) (op string, goType string, desc string, extra map[string]string) {
